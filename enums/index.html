@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>Phan in Browser</title>
+    <title>PHP 8.1 Enums RFC Demo</title>
     <script src="//ajaxorg.github.io/ace-builds/src-min/ace.js" type="text/javascript" charset="utf-8"></script>
     <link rel="stylesheet" type="text/css" href="static/demo.css" />
     <link rel="shortcut icon" href="favicon.ico" />
@@ -12,14 +12,14 @@
 <body>
     <div class="playground">
         <div class="site-header">
-            <h1>Phan in Browser</h1>
-            <em>(Uses <a href="https://github.com/phan/phan">Phan</a> 4.0.0 and PHP 8.0.0. Best viewed in Firefox/Chrome)</em>
+            <h1>PHP 8.1 <a href="https://wiki.php.net/rfc/enumerations">Enums RFC</a> Demo.</h1>
+            <p><em>This is based on the <a href="http://github.com/phan/demo">Phan demo</a>, which is based on <a href="https://oraoto.github.io/pib/">oraoto/pib (PHP in Browser)</a></em></p>
+            <p><em>(This was built on 2020-01-23 from commit <a href="https://github.com/php/php-src/pull/6489/commits/a198f33fc6a3a6a81a60c2bcdb60b3d8cf1e7bcc">a198f33</a>, and <a href="https://github.com/php/php-src/pull/6489">the implementation</a> of <a href="https://wiki.php.net/rfc/enumerations">the RFC</a> may have changed since this was last updated.)</em></p>
         </div>
         <div class="playground-header">
+            <!-- the js expects an analyze button to exist, it's easier to create an invisible one -->
+            <button id="analyze" style="display: none;"></button>
             <div class="editor-buttons">
-                <div class="button-wrapper">
-                    <button id="analyze" title="Analyze PHP Code with Phan" class="disabled" disabled="disabled">Loading...</button>
-                </div>
                 <div class="button-wrapper">
                     <button id="run" title="Run PHP Code" class="disabled" disabled="disabled">Loading...</button>
                 </div>
@@ -36,6 +36,8 @@
 <!-- TODO: move this into a generated JS file -->
     <textarea style="display:none;" id="phan_runner_source">
 
+// This is currently unused for the enums RFC because Phan doesn't support enums yet,
+// but may be useful for other rfcs
 use Phan\Config;
 use Phan\Issue;
 use Phan\IssueInstance;
@@ -121,41 +123,105 @@ try {
     error_reporting(E_ALL);
     ini_set("display_errors", "stderr");
     set_error_handler('demo_error_handler');
+    define('DEMO_FILE_CONTENTS', $CONTENTS_TO_ANALYZE);
+    define('DEMO_FILE_LINES', explode("\n", $CONTENTS_TO_ANALYZE));
     eval($CONTENTS_TO_ANALYZE);
 } catch (Throwable $e) {
     fwrite(STDERR, "Caught " . $e);
 }
     </textarea>
     <textarea style="display:none" id="features_example">
-function demo($param, $arg) : ?int {
-    // Phan can infer types, detect missing elements,
-    // and detect incorrect calls.
-    global $argc;
-    var_export(new my_class());
+// Syntax errors are expected in the editor because this syntax is a proposal.
 
-    $cond = $param > 5;
-    if (!($arg instanceof SplObjectStorage)) { return $argc; }
-    $arg->attach($cond);
-    $arg->atach(new stdClass());
-    $arg->attach(
-        new MyClass($argc),
-        [],
-        'extra'
-    );
-    // Phan can detect redundant/impossible conditions
-    // and unused variables.
-    $always_true = is_bool($cond);
-    echo "Missing variable is $argv\n";
-    return $arg;
+enum Suit {
+    case Hearts;
+    case Diamonds;
+    case Clubs;
+    case Spades;
+    public function color() {
+        return match($this) {
+            Suit::Hearts, Suit::Diamonds => 'Red',
+            Suit::Clubs, Suit::Spades => 'Black',
+        };
+  }
 }
 
-class MyClass {
-    public function __construct(string $x = null) {
-        // and detect undeclared properties, etc.
-        $this->x = $x;
+function pick_a_card(Suit $suit) {
+    echo "Saw $suit->name\n";
+}
+
+$val = Suit::Diamonds;
+
+pick_a_card($val);        // OK
+pick_a_card(Suit::Clubs); // OK
+expect_throws(function () { pick_a_card('Spades'); }); // throws TypeError
+
+expect_throws(function () { new Suit(); }); // throws Error, cannot be instantiated
+
+echo "\nCases are not intrinsically backed by a scalar value.
+That is, Suit::Hearts is not equal to 0.
+Instead, each case is backed by a singleton object of that name.That means that:\n";
+
+$a = Suit::Spades;
+$b = Suit::Spades;
+
+dump_result($a === $b);                    // true
+dump_result($a instanceof Suit);           // true
+dump_result(Suit::Hearts === Suit::Clubs); // false
+
+// Enums may optionally define scalar equivalents
+enum ScalarSuit: string {
+    case Hearts = 'H';
+    case Diamonds = 'D';
+    case Clubs = 'C';
+    case Spades = 'S';
+}
+dump_result(ScalarSuit::Hearts->value);
+dump_result(ScalarSuit::Hearts->name);
+
+// Miscellaneous helper functions unrelated to enums
+function expect_throws(Closure $c) {
+    $callerLineno = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['line'];
+    $snippet = DEMO_FILE_LINES[$callerLineno - 1];
+    $snippet = preg_replace('/^\s*expect_throws\((.*)\);.*$/', '\1', $snippet);
+    try {
+        $result = $c();
+        fprintf(STDERR, "Unexpectedly didn't throw, result was: %s\n", var_export($result, "\n"));
+    } catch (Throwable $e) {
+        $message = preg_replace('/, called in.*$/', '', $e->getMessage());
+        printf("\n%s threw expected %s: %s\n", $snippet, $e::class, $message);
     }
 }
-demo(2, new SplObjectStorage());</textarea>
+
+function dump_result($result) {
+    $callerLineno = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1)[0]['line'];
+    $snippet = DEMO_FILE_LINES[$callerLineno - 1];
+    $snippet = preg_replace('/^\s*dump_result\((.*)\);.*$/', '\1', $snippet);
+    printf("// var_export(%s)\n%s\n", $snippet, var_export($result, true));
+}
+</textarea>
+<textarea style="display:none" id="precomputed_output">
+Saw Diamonds
+Saw Clubs
+
+function () { pick_a_card('Spades'); } threw expected TypeError: pick_a_card(): Argument #1 ($suit) must be of type Suit, string given
+
+function () { new Suit(); } threw expected Error: Cannot instantiate enum Suit
+
+Cases are not intrinsically backed by a scalar value.
+That is, Suit::Hearts is not equal to 0.
+Instead, each case is backed by a singleton object of that name.That means that:
+// var_export($a === $b)
+true
+// var_export($a instanceof Suit)
+true
+// var_export(Suit::Hearts === Suit::Clubs)
+false
+// var_export(ScalarSuit::Hearts->value)
+'H'
+// var_export(ScalarSuit::Hearts->name)
+'Hearts'
+</textarea>
     <script type="text/javascript" src="php.js"></script>
     <script type="text/javascript" src="static/demo.js"></script>
 </body>

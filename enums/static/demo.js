@@ -12,6 +12,7 @@ var query = new URLSearchParams(document.location.search);
 var run_button = document.getElementById('run');
 var analyze_button = document.getElementById('analyze');
 var output_area = document.getElementById('output');
+var precomputed_output = document.getElementById('precomputed_output');
 var isUsable = false;
 
 var initial_code = query.has('code') ? query.get('code') : '';
@@ -20,18 +21,7 @@ if (query.has('code') && initial_code != default_code) {
 } else {
     editor.setValue(default_code);
     // Pre-render the output of the demo to show the types of issues Phan is capable of detecting.
-    output_area.innerHTML =
-        '<p><span class="phan_file">input</span>:<span class="phan_line">6</span>: <span class="phan_issuetype_critical">PhanUndeclaredClassMethod</span> Call to method <span class="phan_method">__construct</span> from undeclared class <span class="phan_class">\\my_class</span> (<span class="phan_suggestion">Did you mean class \\MyClass</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">10</span>: <span class="phan_issuetype_critical">PhanTypeMismatchArgumentInternalReal</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$object</span>) is <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span><span class="phan_details"></span> but <span class="phan_functionlike">\\SplObjectStorage::attach()</span> takes <span class="phan_type">object</span><span class="phan_details"></span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">11</span>: <span class="phan_issuetype_critical">PhanUndeclaredMethod</span> Call to undeclared method <span class="phan_method">\\SplObjectStorage::atach</span> (<span class="phan_suggestion">Did you mean expr-&gt;attach()</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">12</span>: <span class="phan_issuetype_critical">PhanParamTooManyInternal</span> Call with <span class="phan_count">3</span> arg(s) to <span class="phan_functionlike">\\SplObjectStorage::attach(object $object, $inf = null)</span> which only takes <span class="phan_count">2</span> arg(s). This is an ArgumentCountError for internal functions in PHP 8.0+.</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">13</span>: <span class="phan_issuetype_normal">PhanTypeMismatchArgument</span> Argument <span class="phan_index">1</span> (<span class="phan_parameter">$x</span>) is <span class="phan_code">$argc</span> of type <span class="phan_type">int</span> but <span class="phan_functionlike">\\MyClass::__construct()</span> takes <span class="phan_type">?string</span> defined at <span class="phan_file">input</span>:<span class="phan_line">25</span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype">PhanRedundantCondition</span> Redundant attempt to cast <span class="phan_code">$cond</span> of type <span class="phan_type">bool</span> to <span class="phan_type">bool</span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">19</span>: <span class="phan_issuetype_normal">PhanUnusedVariable</span> Unused definition of variable <span class="phan_variable">$always_true</span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanTypeSuspiciousStringExpression</span> Suspicious type <span class="phan_type">null=</span> of a variable or expression <span class="phan_code">$argv</span> used to build a string. (Expected type to be able to cast to a string)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">20</span>: <span class="phan_issuetype_normal">PhanUndeclaredVariable</span> Variable <span class="phan_variable">$argv</span> is undeclared (<span class="phan_suggestion">Did you mean $arg or $argc or (global $argv)</span>)</p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">21</span>: <span class="phan_issuetype_critical">PhanTypeMismatchReturnReal</span> Returning <span class="phan_code">$arg</span> of type <span class="phan_type">\\SplObjectStorage</span><span class="phan_details"></span> but <span class="phan_functionlike">demo()</span> is declared to return <span class="phan_type">?int</span><span class="phan_details"></span></p>' +
-        '<p><span class="phan_file">input</span>:<span class="phan_line">27</span>: <span class="phan_issuetype_normal">PhanUndeclaredProperty</span> Reference to undeclared property <span class="phan_property">\\MyClass-&gt;x</span></p>';
+    output_area.innerHTML = precomputed_output.innerHTML;
 }
 
 var phpModule;
@@ -129,7 +119,7 @@ function doRunWithWrapper(analysisWrapper, code, outputIsHTML, defaultText) {
     // single quotes aren't escaped by encodeURIComponent, but double quotes are.
     // Other problematic characters are escaped, and this preserves UTF-8.
     var contentsFragment = 'rawurldecode("' + encodeURIComponent(code) + '")';
-    var analysisCode = analysisWrapper.replace('$CONTENTS_TO_ANALYZE', contentsFragment);
+    var analysisCode = analysisWrapper.replace(/\$CONTENTS_TO_ANALYZE/g, contentsFragment);
 
     doRun(analysisCode, outputIsHTML, defaultText);
 }
@@ -271,9 +261,6 @@ function generateNewPHPModule() {
 
             if (arguments.length > 1) {
                 text = Array.prototype.slice.call(arguments).join(' ');
-            }
-            if (text == '') {
-                return;
             }
             if (didInit && phpModuleDidLoad) {
                 combinedOutput += htmlescape(text) + "\n";
