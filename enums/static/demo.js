@@ -177,7 +177,6 @@ function fetchRemotePackage(packageName, callback) {
 
 /* This can be reused - This avoids notices about HTTP 302s and using the streaming API in some browsers (firefox), but is counterproductive if other browsers (Chrome) would normally just use disk cache. */
 var phpWasmBinary = null;
-var phpWasmData = null;
 function loadPhpWasm(cb) {
     console.log('called loadPhpWasm');
     if (phpWasmBinary) {
@@ -186,10 +185,7 @@ function loadPhpWasm(cb) {
     }
     fetchRemotePackage('php.wasm', function (data) {
         phpWasmBinary = data;
-        fetchRemotePackage('php.data', function (data) {
-            phpWasmData = data;
-            cb(phpWasmBinary);
-        });
+        cb(phpWasmBinary);
     });
 }
 
@@ -283,12 +279,6 @@ function generateNewPHPModule() {
         },
         wasmBinary: phpWasmBinary,
         wasmMemory: reusableWasmMemory,
-        getPreloadedPackage: function(name) {
-          if (name === 'php.data') {
-            console.log('getPreloadedPackage returning php.data', phpWasmBinary);
-            return phpWasmData;
-          }
-        }
     };
     console.log('creating PHP module fetchPreloadedPackage override');
     return PHP(phpModuleOptions).then(function (newPHPModule) {
