@@ -144,24 +144,49 @@ foreach ($deque as $offset => $value) {
 }
 echo "\nAfter iteration\n";
 var_dump($deque);
-/*
-value:  first deque[offset=0]=first
-value: second deque[offset=1]=second
-=> Shifting while iterating: removed first
-value:  third deque[offset=1]=third
-=> Push while iterating
-value: fourth deque[offset=2]=fourth
 
-After iteration
-object(Collections\Deque)#1 (3) {
-  [0]=>
-  string(6) "second"
-  [1]=>
-  string(5) "third"
-  [2]=>
-  string(6) "fourth"
+function bench_array(int $n, int $iterations) {
+    $startTime = hrtime(true);
+    for ($i = 0; $i < $iterations; $i++) {
+        $array = [];
+        for ($j = 0; $j < $n; $j++) {
+            array_unshift($array, $j);
+        }
+        $total = 0;
+        for ($j = 0; $j < $n; $j++) {
+            $total += array_shift($array);
+        }
+    }
+    $elapsed = (hrtime(true) - $startTime)/1e9;
+    printf("bench_array n=%7d iterations=%7d: time=%.3f seconds total=%d\n", $n, $iterations, $elapsed, $total);
+    return $elapsed;
 }
-*/
+function bench_deque(int $n, int $iterations) {
+    $startTime = hrtime(true);
+    for ($i = 0; $i < $iterations; $i++) {
+        $deque = new Collections\Deque();
+        for ($j = 0; $j < $n; $j++) {
+            $deque->unshift($j);
+        }
+        $total = 0;
+        for ($j = 0; $j < $n; $j++) {
+            $total += $deque->shift();
+        }
+    }
+    $elapsed = (hrtime(true) - $startTime)/1e9;
+    printf("bench_deque n=%7d iterations=%7d: time=%.3f seconds total=%d\n", $n, $iterations, $elapsed, $total);
+    return $elapsed;
+}
+
+echo "\nBenchmark repeatedly unshifting to the front then shifting from the front.\n";
+echo "This is a significantly shortened version of https://wiki.php.net/rfc/deque#unshifting_n_values_to_the_start_then_shifting_n_values_from_the_start\n";
+echo "Result preview times will differ from WebAssembly performance on your device.\n\n";
+foreach ([[2000, 25], [1000, 50], [500, 100], [8, 100000]] as [$n, $iterations]) {
+    $arrayTime = bench_array($n, $iterations);
+    $dequeTime = bench_deque($n, $iterations);
+    printf("Deque runtime for n=%7d is %.3fx faster\n", $n, $arrayTime/$dequeTime);
+    echo "\n";
+}
 </textarea>
 <textarea style="display:none" id="precomputed_output">
 value:  first deque[offset=0]=first
@@ -180,6 +205,27 @@ object(Collections\Deque)#1 (3) {
   [2]=>
   string(6) "fourth"
 }
+
+Benchmark repeatedly unshifting to the front then shifting from the front.
+This is a significantly shortened version of https://wiki.php.net/rfc/deque#unshifting_n_values_to_the_start_then_shifting_n_values_from_the_start
+Result preview times will differ from WebAssembly performance on your device.
+
+bench_array n=   2000 iterations=     25: time=0.425 seconds total=1999000
+bench_deque n=   2000 iterations=     25: time=0.011 seconds total=1999000
+Deque runtime for n=   2000 is 36.974x faster
+
+bench_array n=   1000 iterations=     50: time=0.224 seconds total=499500
+bench_deque n=   1000 iterations=     50: time=0.012 seconds total=499500
+Deque runtime for n=   1000 is 19.310x faster
+
+bench_array n=    500 iterations=    100: time=0.119 seconds total=124750
+bench_deque n=    500 iterations=    100: time=0.012 seconds total=124750
+Deque runtime for n=    500 is 10.000x faster
+
+bench_array n=      8 iterations= 100000: time=0.297 seconds total=28
+bench_deque n=      8 iterations= 100000: time=0.223 seconds total=28
+Deque runtime for n=      8 is 1.332x faster
+
 </textarea>
     <script type="text/javascript" src="php.js"></script>
     <script type="text/javascript" src="static/demo.js"></script>
