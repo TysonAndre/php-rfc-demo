@@ -308,9 +308,7 @@ function markButtonsAsUnusable() {
 function showWebAssemblyError(message) {
     output_area.setAttribute('style', 'font-family: serif');
     output_area.innerHTML =
-        '<h1 class="phan_issuetype_critical">' + message + '</h1>' +
-        '<br />' +
-        '<p>But you can install <a href="https://github.com/phan/phan">Phan</a> locally with <a href="https://github.com/phan/phan/wiki/Getting-Started">these instructions for getting started.</a>, or try this in Firefox or Chrome.</p>';
+        '<h1 class="phan_issuetype_critical">' + message + '</h1>';
     markButtonsAsUnusable();
 }
 if (!window.WebAssembly) {
