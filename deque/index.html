@@ -14,7 +14,7 @@
         <div class="site-header">
             <h1>PHP 8.2 <a href="https://wiki.php.net/rfc/deque">Deque RFC</a> Demo.</h1>
             <p><em>This is based on the <a href="http://github.com/phan/demo">Phan demo</a>, which is based on <a href="https://oraoto.github.io/pib/">oraoto/pib (PHP in Browser)</a></em></p>
-            <p><em>(This was built on 2022-11-10 from commit <a href="https://github.com/php/php-src/pull/7500/commits/26a777de9705b31e05ac8650d097eb96f72b30ab">26a777de</a>, and <a href="https://github.com/php/php-src/pull/7500">the implementation</a> of <a href="https://wiki.php.net/rfc/deque">the RFC</a> may have changed since this was last updated.)</em></p>
+            <p><em>(This was built on 2022-11-10 from commit <a href="https://github.com/php/php-src/pull/7500/commits/c2bad593dcdc699f936909e45907abd3a0340d62">c2bad593</a>, and <a href="https://github.com/php/php-src/pull/7500">the implementation</a> of <a href="https://wiki.php.net/rfc/deque">the RFC</a> may have changed since this was last updated.)</em></p>
             <p>(As described in Wikipedia: <em>In computer science, a <a href="https://en.wikipedia.org/wiki/Double-ended_queue"><strong>double-ended queue</strong></a> (abbreviated to <strong>deque</strong>, pronounced deck, like “cheque”) is an abstract data type that generalizes a queue, for which elements can be (efficiently) added to or removed from either the front (head) or back (tail))</em></p>
             <p><em>(Note that <a href="https://webassembly.org/">WebAssembly</a> performance/optimizations are slower and different compared to native architectures for both <a href="https://wiki.php.net/rfc/deque"><code>Collections\Deque</code></a> and <code>array</code> (and all parts of PHP). E.g. for large values of n, native x64 performance of <code>Collections\Deque</code> is several times faster than the WebAssembly performance.)</em></p>
         </div>
@@ -137,7 +137,7 @@ $deque = new Collections\Deque(['first', 'second', 'third']);
 foreach ($deque as $offset => $value) {
     printf("value: %6s deque[offset=%s]=%s\n", $value, $offset, $deque[$offset]);
     if ($value === 'second') {
-        printf("=> Shifting while iterating: removed %s\n", $deque->shift());
+        printf("=> Pop from front while iterating: removed %s\n", $deque->popFront());
     } elseif ($value === 'third') {
         printf("=> Push while iterating\n");
         $deque->push('fourth');
@@ -167,11 +167,11 @@ function bench_deque(int $n, int $iterations) {
     for ($i = 0; $i < $iterations; $i++) {
         $deque = new Collections\Deque();
         for ($j = 0; $j < $n; $j++) {
-            $deque->unshift($j);
+            $deque->pushFront($j);
         }
         $total = 0;
         for ($j = 0; $j < $n; $j++) {
-            $total += $deque->shift();
+            $total += $deque->popFront();
         }
     }
     $elapsed = (hrtime(true) - $startTime)/1e9;
@@ -179,7 +179,7 @@ function bench_deque(int $n, int $iterations) {
     return $elapsed;
 }
 
-echo "\nBenchmark repeatedly unshifting to the front then shifting from the front.\n";
+echo "\nBenchmark repeatedly adding to the front then removing from the front.\n";
 echo "This is a significantly shortened and less efficient version of https://wiki.php.net/rfc/deque#unshifting_n_values_to_the_start_then_shifting_n_values_from_the_start\n";
 echo "WebAssembly performance/compiler optimizations are noticeably different from native performance (Deque is 188x faster than array natively for for me for n=2000)\n";
 echo "Result preview times will differ from WebAssembly performance on your device.\n\n";
@@ -193,7 +193,7 @@ foreach ([[2000, 25], [1000, 50], [500, 100], [8, 100000]] as [$n, $iterations])
 <textarea style="display:none" id="precomputed_output">
 value:  first deque[offset=0]=first
 value: second deque[offset=1]=second
-=> Shifting while iterating: removed first
+=> Pop from front while iterating: removed first
 value:  third deque[offset=1]=third
 => Push while iterating
 value: fourth deque[offset=2]=fourth
@@ -208,27 +208,26 @@ object(Collections\Deque)#1 (3) {
   string(6) "fourth"
 }
 
-Benchmark repeatedly unshifting to the front then shifting from the front.
+Benchmark repeatedly adding to the front then removing from the front.
 This is a significantly shortened and less efficient version of https://wiki.php.net/rfc/deque#unshifting_n_values_to_the_start_then_shifting_n_values_from_the_start
 WebAssembly performance/compiler optimizations are noticeably different from native performance (Deque is 188x faster than array natively for for me for n=2000)
 Result preview times will differ from WebAssembly performance on your device.
 
-bench_array n=   2000 iterations=     25: time=0.534 seconds total=1999000
-bench_deque n=   2000 iterations=     25: time=0.009 seconds total=1999000
-Deque runtime for n=   2000 is 62.824x faster (in WebAssembly)
+bench_array n=   2000 iterations=     25: time=0.506 seconds total=1999000
+bench_deque n=   2000 iterations=     25: time=0.008 seconds total=1999000
+Deque runtime for n=   2000 is 66.539x faster (in WebAssembly)
 
-bench_array n=   1000 iterations=     50: time=0.278 seconds total=499500
-bench_deque n=   1000 iterations=     50: time=0.009 seconds total=499500
-Deque runtime for n=   1000 is 31.954x faster (in WebAssembly)
+bench_array n=   1000 iterations=     50: time=0.263 seconds total=499500
+bench_deque n=   1000 iterations=     50: time=0.008 seconds total=499500
+Deque runtime for n=   1000 is 34.169x faster (in WebAssembly)
 
-bench_array n=    500 iterations=    100: time=0.148 seconds total=124750
-bench_deque n=    500 iterations=    100: time=0.009 seconds total=124750
-Deque runtime for n=    500 is 16.773x faster (in WebAssembly)
+bench_array n=    500 iterations=    100: time=0.137 seconds total=124750
+bench_deque n=    500 iterations=    100: time=0.008 seconds total=124750
+Deque runtime for n=    500 is 17.603x faster (in WebAssembly)
 
-bench_array n=      8 iterations= 100000: time=0.263 seconds total=28
-bench_deque n=      8 iterations= 100000: time=0.180 seconds total=28
-Deque runtime for n=      8 is 1.456x faster (in WebAssembly)
-
+bench_array n=      8 iterations= 100000: time=0.238 seconds total=28
+bench_deque n=      8 iterations= 100000: time=0.161 seconds total=28
+Deque runtime for n=      8 is 1.473x faster (in WebAssembly)
 </textarea>
     <script type="text/javascript" src="php.js"></script>
     <script type="text/javascript" src="static/demo.js"></script>
